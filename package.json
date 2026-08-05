@@ -1,17 +1,17 @@
 {
   "name": "@bryanochoa/custom-fetch-api",
   "type": "module",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "fetch API personalizado",
   "author": "Bryan Ochoa <bryanjm96@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/author/library#readme",
+  "homepage": "https://github.com/bryanmsombra27/custom-fetch-api#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/author/library.git"
+    "url": "https://github.com/bryanmsombra27/custom-fetch-api.git"
   },
   "bugs": {
-    "url": "https://github.com/author/library/issues"
+    "url": "https://github.com/bryanmsombra27/custom-fetch-api/issues"
   },
   "exports": {
     ".": "./dist/index.mjs",
