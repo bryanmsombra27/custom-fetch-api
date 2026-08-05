@@ -6,6 +6,11 @@
   "author": "Bryan Ochoa <bryanjm96@gmail.com>",
   "license": "MIT",
   "homepage": "https://github.com/bryanmsombra27/custom-fetch-api#readme",
+  "keywords": [
+    "fetch",
+    "api",
+    "node"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/bryanmsombra27/custom-fetch-api.git"
