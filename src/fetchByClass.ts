@@ -47,6 +47,14 @@ export class CustomFetchAPI {
     searchParams?: CustomFetchSearchParams,
   ): Promise<T> {
     this.verifyTokenWereSet();
+    this.optionRequest.method = "GET";
+
+    if (this.optionRequest.body) {
+      this.optionRequest.body = undefined;
+    }
+    if (this.headers.has("Content-Type")) {
+      this.headers.delete("Content-Type");
+    }
 
     const finalUrl = this.setParams(url, { searchParams });
     const request = await fetch(finalUrl, this.optionRequest);
@@ -56,13 +64,17 @@ export class CustomFetchAPI {
   }
   async post<T>(
     url: string,
-    { searchParams, body, contentType }: CustomFetchOptions,
+    {
+      searchParams,
+      body,
+      contentType = "application/json",
+    }: CustomFetchOptions,
   ): Promise<T> {
     this.verifyTokenWereSet();
 
     this.optionRequest.method = "POST";
     this.setBody(body, contentType);
-    const finalUrl = this.setParams(url, searchParams!);
+    const finalUrl = this.setParams(url, { searchParams });
     const request = await fetch(finalUrl, this.optionRequest);
     const data = await request.json();
 
@@ -76,7 +88,7 @@ export class CustomFetchAPI {
 
     this.optionRequest.method = "PUT";
     this.setBody(body, contentType);
-    const finalUrl = this.setParams(url, searchParams!);
+    const finalUrl = this.setParams(url, { searchParams });
     const request = await fetch(finalUrl, this.optionRequest);
     const data = await request.json();
 
@@ -90,7 +102,7 @@ export class CustomFetchAPI {
 
     this.optionRequest.method = "PATCH";
     this.setBody(body, contentType);
-    const finalUrl = this.setParams(url, searchParams!);
+    const finalUrl = this.setParams(url, { searchParams });
 
     const request = await fetch(finalUrl, this.optionRequest);
     const data = await request.json();
@@ -101,6 +113,13 @@ export class CustomFetchAPI {
     this.verifyTokenWereSet();
 
     this.optionRequest.method = "DELETE";
+    if (this.optionRequest.body) {
+      this.optionRequest.body = undefined;
+    }
+    if (this.headers.has("Content-Type")) {
+      this.headers.delete("Content-Type");
+    }
+
     const uri = this.baseUrl ? `${this.baseUrl}${url}` : url;
     const request = await fetch(uri, this.optionRequest);
     const data = await request.json();
