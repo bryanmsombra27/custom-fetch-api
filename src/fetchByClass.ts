@@ -12,7 +12,10 @@ export interface BaseOptions {
   safeTokenOn?: SafeTokenOn;
 }
 
-type SafeTokenOn = LocalStorageOptionsConfig | SessionStorageOptionsConfig;
+type SafeTokenOn =
+  | LocalStorageOptionsConfig
+  | SessionStorageOptionsConfig
+  | CookieStorageOptionsConfig;
 
 type LocalStorageOptionsConfig = {
   storage?: "localStorage";
@@ -22,6 +25,13 @@ type SessionStorageOptionsConfig = {
   storage?: "sessionStorage";
   keyname: string;
 };
+type CookieStorageOptionsConfig = {
+  storage?: "cookieStorage";
+  keyname: string;
+  opt?: CookieSetOptions;
+};
+
+const CONFIG_KEY = "config";
 
 export class CustomFetchAPI {
   private baseUrl?: string;
@@ -39,6 +49,15 @@ export class CustomFetchAPI {
 
     if (options?.safeTokenOn) {
       this.safeTokenOn = options.safeTokenOn;
+      CookieStorage.setItem(CONFIG_KEY, JSON.stringify(this.safeTokenOn));
+    }
+
+    if (!this.safeTokenOn && CookieStorage.getCookie(CONFIG_KEY)) {
+      const safeTokenOnOptions = JSON.parse(
+        CookieStorage.getCookie(CONFIG_KEY)!,
+      );
+
+      this.safeTokenOn = safeTokenOnOptions;
     }
   }
 
@@ -113,13 +132,6 @@ export class CustomFetchAPI {
     this.verifyTokenWereSet();
 
     this.optionRequest.method = "DELETE";
-    if (this.optionRequest.body) {
-      this.optionRequest.body = undefined;
-    }
-    if (this.headers.has("Content-Type")) {
-      this.headers.delete("Content-Type");
-    }
-
     const uri = this.baseUrl ? `${this.baseUrl}${url}` : url;
     const request = await fetch(uri, this.optionRequest);
     const data = await request.json();
@@ -152,12 +164,75 @@ export class CustomFetchAPI {
     return finalUrl;
   }
 
-  private verifyTokenWereSet() {
+  private getTokenFromStorage() {
+    let token: string | null = null;
     if (this.safeTokenOn) {
-      this.token =
-        this.safeTokenOn.storage == "localStorage"
-          ? LocalStorage.getItem(this.safeTokenOn.keyname)
-          : SessionStorage.getItem(this.safeTokenOn.keyname);
+      if (this.safeTokenOn.storage) {
+        switch (this.safeTokenOn.storage) {
+          case "localStorage":
+            token = LocalStorage.getItem(this.safeTokenOn.keyname);
+            break;
+
+          case "sessionStorage":
+            token = SessionStorage.getItem(this.safeTokenOn.keyname);
+            break;
+          case "cookieStorage":
+            token = CookieStorage.getItem(this.safeTokenOn.keyname);
+            break;
+        }
+      }
+    }
+    return token;
+  }
+  private setTokenFromStorage() {
+    if (this.safeTokenOn) {
+      if (!CookieStorage.getCookie(CONFIG_KEY)) {
+        CookieStorage.setItem(CONFIG_KEY, JSON.stringify(this.safeTokenOn));
+      }
+
+      if (this.safeTokenOn.storage) {
+        switch (this.safeTokenOn.storage) {
+          case "localStorage":
+            LocalStorage.setItem(this.safeTokenOn.keyname, this.token!);
+            break;
+
+          case "sessionStorage":
+            SessionStorage.setItem(this.safeTokenOn.keyname, this.token!);
+            break;
+          case "cookieStorage":
+            CookieStorage.setItem(this.safeTokenOn.keyname, this.token!);
+            break;
+        }
+      }
+    }
+  }
+  private removeTokenFromStorage() {
+    if (this.safeTokenOn) {
+      if (this.safeTokenOn.storage) {
+        switch (this.safeTokenOn.storage) {
+          case "localStorage":
+            LocalStorage.removeItem(this.safeTokenOn.keyname);
+            break;
+
+          case "sessionStorage":
+            SessionStorage.removeItem(this.safeTokenOn.keyname);
+            break;
+          case "cookieStorage":
+            CookieStorage.removeItem(this.safeTokenOn.keyname);
+            break;
+        }
+
+        // if (CookieStorage.getCookie(CONFIG_KEY)) {
+        //   CookieStorage.removeItem(CONFIG_KEY);
+        // }
+      }
+    }
+  }
+
+  private verifyTokenWereSet() {
+    // AGREGAR TRY CATCH EN ESTE PUNTO , AGREGAR AQUI LA VERFICACION SI EL TOKEN ESTA AGREGADO EN LOCAL STORAGE/ SESSION STORAGE
+    if (this.safeTokenOn) {
+      this.token = this.getTokenFromStorage();
     }
 
     if (this.token != null && !this.headers.has("Authorization")) {
@@ -170,16 +245,12 @@ export class CustomFetchAPI {
       this.token = token;
       this.headers.append("Authorization", `Bearer ${token}`);
       if (this.safeTokenOn) {
-        this.safeTokenOn.storage == "localStorage"
-          ? LocalStorage.setItem(this.safeTokenOn.keyname, token)
-          : SessionStorage.setItem(this.safeTokenOn.keyname, token);
+        this.setTokenFromStorage();
       }
 
       if (safeTokenOn) {
         this.safeTokenOn = safeTokenOn;
-        this.safeTokenOn.storage == "localStorage"
-          ? LocalStorage.setItem(this.safeTokenOn.keyname, token)
-          : SessionStorage.setItem(this.safeTokenOn.keyname, token);
+        this.setTokenFromStorage();
       }
     }
   }
@@ -188,9 +259,7 @@ export class CustomFetchAPI {
     this.token = "";
     this.headers.delete("Authorization");
     if (this.safeTokenOn) {
-      this.safeTokenOn.storage == "localStorage"
-        ? LocalStorage.removeItem(this.safeTokenOn.keyname)
-        : SessionStorage.removeItem(this.safeTokenOn.keyname);
+      this.removeTokenFromStorage();
     }
   }
 }
@@ -217,5 +286,83 @@ class SessionStorage {
   }
   static removeItem(key: string) {
     sessionStorage.removeItem(key);
+  }
+}
+
+interface CookieSetOptions {
+  maxAge?: number;
+  path?: string;
+  secure?: boolean;
+  sameSite?: "Strict" | "Lax" | "None";
+  httpOnly?: boolean;
+}
+
+class CookieStorage {
+  static setItem(key: string, value: string, opt?: CookieSetOptions) {
+    let finalCookie: string = "";
+
+    if (opt) {
+      const {
+        httpOnly = false,
+        path = "/",
+        maxAge = 3600,
+        secure = false,
+        sameSite = "Strict",
+      } = opt;
+      finalCookie = `${key}=${value}; Path=${path}; Max-Age=${maxAge}; SameSite=${sameSite};`;
+
+      if (httpOnly) {
+        finalCookie.concat(" HttpOnly;");
+      }
+
+      if (secure) {
+        finalCookie.concat(" Secure;");
+      }
+    } else {
+      const path = "/",
+        maxAge = 3600,
+        sameSite = "Strict";
+      const cookieWithoutConfig = `${key}=${value}; Path=${path}; Max-Age=${maxAge}; SameSite=${sameSite};`;
+
+      finalCookie = cookieWithoutConfig;
+    }
+
+    document.cookie = finalCookie;
+
+    // window.cookieStore.set(key, finalCookie);
+  }
+  static getItem(nombre: string) {
+    // 1. Añadir un signo de igual al nombre para buscar "nombre="
+    let nombreBuscado = nombre + "=";
+
+    // 2. Decodificar la cadena de cookies por si tiene caracteres especiales
+    let cookiesDecodificadas = decodeURIComponent(document.cookie);
+
+    // 3. Dividir la cadena en un array de cookies individuales
+    let listaCookies = cookiesDecodificadas.split(";");
+
+    // 4. Recorrer el array buscando la cookie correcta
+    for (let i = 0; i < listaCookies.length; i++) {
+      let cookie = listaCookies[i].trim(); // Quitar espacios en blanco
+
+      // Si la cookie empieza con el nombre que buscamos, devolvemos su valor
+      if (cookie.indexOf(nombreBuscado) === 0) {
+        return cookie.substring(nombreBuscado.length, cookie.length);
+      }
+    }
+    // Si no se encuentra, devuelve null o una cadena vacía
+    return null;
+  }
+
+  static getCookie(name: string) {
+    const cookies = document.cookie.split("; ");
+
+    const cookie = cookies.find((cookie) => cookie.startsWith(`${name}=`));
+
+    return cookie ? cookie.split("=")[1] : null;
+  }
+
+  static removeItem(nombre: string) {
+    document.cookie = nombre + "=; max-age=0; path=/";
   }
 }

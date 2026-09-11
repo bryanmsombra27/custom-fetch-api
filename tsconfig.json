@@ -3,7 +3,7 @@
     "target": "esnext",
     // CONFIGURACON PARA ENTORNO WEB
     // "lib": ["es2023", "DOM", "DOM.Iterable"],
-    "lib": ["es2023"],
+    "lib": ["es2023", "DOM"],
 
     "moduleDetection": "force",
     "module": "preserve",
